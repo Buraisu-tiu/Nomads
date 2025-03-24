@@ -27,8 +27,20 @@ class Player:
         self.sprite_width, self.sprite_height = self.current_sprites[0].get_size()
 
         # Create a rect for collision & centering
-        self.rect = pygame.Rect(self.x, self.y, self.sprite_width * 0.1, self.sprite_height * 0.9)
- 
+        hitbox_offset_x = 4
+        hitbox_offset_y = 2
+        hitbox_width = self.sprite_width * 0.1
+        hitbox_height = self.sprite_height * 0.6
+
+        self.rect = pygame.Rect(
+            self.x + hitbox_offset_x,
+            self.y + hitbox_offset_y,
+            hitbox_width,
+            hitbox_height
+        )
+
+        # Store the offset to apply later during movement
+        self.hitbox_offset = (hitbox_offset_x, hitbox_offset_y)
 
     def load_sprite_sheet(self, path, num_frames):
         """Load sprite sheet, extract vertically stacked frames, and scale them up."""
@@ -102,7 +114,8 @@ class Player:
         self.y = max(0, min(self.y, map_height - self.rect.height))
 
         # Update collision rect position
-        self.rect.topleft = (self.x , self.y)
+        self.rect.topleft = (self.x + self.hitbox_offset[0], self.y + self.hitbox_offset[1])
+
 
         # Update animation frame
         self.update_animation()
@@ -129,8 +142,19 @@ class Player:
             crouch_offset_y = 10  # Move player down slightly
 
         # **Fixed centering issue**
-        offset_x = -sprite.get_width() // 1.3 + self.rect.width // 2  # Adjust left/right
-        offset_y = -sprite.get_height() // 4 + self.rect.height // 2 + crouch_offset_y  # Adjust up/down, move down when crouching
+        # Base offset to push sprite lower
+        sprite_offset_y = -22
+
+        # Directional horizontal offset
+        if self.direction == "left":
+            sprite_offset_x = 13  # shift more to the left
+        else:
+            sprite_offset_x = 0  # no offset when facing right
+
+        # Apply centered positioning + offsets
+        offset_x = -sprite.get_width() // 1.3 + self.rect.width // 2 + sprite_offset_x
+        offset_y = -sprite.get_height() // 4 + self.rect.height // 2 + crouch_offset_y + sprite_offset_y
+        # Adjust up/down, move down when crouching
         # Draw shadow
         shadow_width = self.rect.width
         shadow_height = 12

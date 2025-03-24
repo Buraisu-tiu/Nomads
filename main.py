@@ -1,5 +1,3 @@
-# main.py
-
 import pygame
 import random
 import os
@@ -10,7 +8,7 @@ from survival import Survival
 from particles import ParticleSystem
 from player import Player
 from day_night import DayNightCycle
-from crafting import CraftingSystem
+from crafting import CraftingSystem, add_to_inventory
 from rocks import Rock
 from cow import Cow
 from water_tile import WaterTile
@@ -21,58 +19,50 @@ from save_load import save_game, load_game
 
 pygame.init()
 
-# --- Display & World ---
+# --- Display and World Settings ---
 SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 800
 MAP_WIDTH, MAP_HEIGHT = 4000, 3000
 GRID_SIZE = 64
 ITEM_SIZE = 30
+ICON_SIZE = 40
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Nomads")
-
-
-
-dragged_item = None
-dragged_index = None
-dragged_from = None  # "inventory" or "hotbar"
 
 # --- Colors ---
 DESERT_COLOR = (199, 168, 107)
 GRID_COLOR = (0, 0, 0, 25)
 
-# --- Inventory UI Constants (✅ Fixed!) ---
+# --- UI Constants ---
 INVENTORY_COLUMNS = 6
 INVENTORY_ROWS = 4
 INVENTORY_SLOT_SIZE = 75
 HOTBAR_SLOTS = 8
 selected_hotbar_index = 0
 
+# --- Inventory State ---
+inventory_slots = [None] * (INVENTORY_COLUMNS * INVENTORY_ROWS)
+hotbar_slots = [None] * HOTBAR_SLOTS
+dragged_item = None
+dragged_index = None
+dragged_from = None
 
 # --- Game State ---
-INVENTORY_COLUMNS = 6
-INVENTORY_ROWS = 4
-HOTBAR_SLOTS = 8
-
-# 24 inventory slots (6 x 4)
-inventory_slots = [None] * (INVENTORY_COLUMNS * INVENTORY_ROWS)
-
-# 8 hotbar slots
-hotbar_slots = [None] * HOTBAR_SLOTS
-
 inventory_open = False
 last_water_pickup_time = 0
-WATER_PICKUP_COOLDOWN = 1000  # ms
+WATER_PICKUP_COOLDOWN = 1000
 camera_shake_intensity = 0
 camera_shake_duration = 0
 chest_e_pressed_last = False
 campfires = []
 camps = []
 
+# --- Safe Zone ---
 PLAYER_SAFE_ZONE = pygame.Rect(MAP_WIDTH // 2 - 64, MAP_HEIGHT // 2 - 64, 128, 128)
 
 # --- Assets ---
-ICON_SIZE = 40
-def load_icon(name): return pygame.transform.scale(pygame.image.load(name), (ICON_SIZE, ICON_SIZE))
+def load_icon(name):
+    return pygame.transform.scale(pygame.image.load(name), (ICON_SIZE, ICON_SIZE))
 
 ITEM_TYPES = {
     "Meat": load_icon("meat.png"),
@@ -85,7 +75,6 @@ ITEM_TYPES = {
     "Stone Sword": load_icon("sword.png"),
     "Campfire": pygame.Surface((ICON_SIZE, ICON_SIZE))
 }
-
 ITEM_TYPES["Plank"].fill((139, 69, 19))
 ITEM_TYPES["Stone"].fill((100, 100, 100))
 ITEM_TYPES["Campfire"].fill((200, 90, 40))
@@ -101,11 +90,10 @@ particle_system = ParticleSystem()
 crafting_system = CraftingSystem()
 day_night_cycle = DayNightCycle(30, 15)
 
-# --- World Entities ---
 items, rocks, cows, lakes = [], [], [], []
 occupied_tiles = set()
 
-# --- Grid Surface ---
+# --- Grid ---
 def create_grid_surface():
     surf = pygame.Surface((MAP_WIDTH, MAP_HEIGHT), pygame.SRCALPHA)
     dash, space = 10, 6
@@ -119,57 +107,26 @@ def create_grid_surface():
 
 grid_surface = create_grid_surface()
 
-
-def inventory_to_dict(inventory_slots):
-    """
-    Convert slot-based inventory to a dictionary for compatibility.
-    Example: [{"item": "Wood", "count": 3}, None, {"item": "Stone", "count": 2}] 
-    → {"Wood": 3, "Stone": 2}
-    """
-    inventory_dict = {}
-    for slot in inventory_slots:
+# --- Inventory Utilities ---
+def inventory_to_dict(slots):
+    d = {}
+    for slot in slots:
         if slot:
             item = slot["item"]
-            count = slot["count"]
-            inventory_dict[item] = inventory_dict.get(item, 0) + count
-    return inventory_dict
+            d[item] = d.get(item, 0) + slot["count"]
+    return d
 
-def dict_to_inventory(inventory_dict, inventory_slots):
-    """
-    Update inventory_slots from a dictionary.
-    Example: {"Wood": 3, "Stone": 2} 
-    Updates: [{"item": "Wood", "count": 3}, {"item": "Stone", "count": 2}, None, ...]
-    """
-    # Clear all slots
-    for i in range(len(inventory_slots)):
-        inventory_slots[i] = None
-
-    # Fill slots from the dictionary
-    index = 0
-    for item, count in inventory_dict.items():
-        if index < len(inventory_slots):
-            inventory_slots[index] = {"item": item, "count": count}
-            index += 1
-
-# ... rest of the code stays the same ...
-
-def add_to_inventory(self, inventory_slots, item_name, amount=1):
-    # Try stacking
-    for slot in inventory_slots:
-        if slot and slot["item"] == item_name:
-            slot["count"] += amount
-            return
-
-    # Try empty slot
-    for i in range(len(inventory_slots)):
-        if inventory_slots[i] is None:
-            inventory_slots[i] = {"item": item_name, "count": amount}
-            return
-
-    print("Inventory full! Couldn't add", item_name)
+def dict_to_inventory(data, slots):
+    for i in range(len(slots)):
+        slots[i] = None
+    i = 0
+    for item, count in data.items():
+        if i < len(slots):
+            slots[i] = {"item": item, "count": count}
+            i += 1
 
 
-# --- World Gen ---
+# --- World Generation ---
 def spawn_lakes(num=5, size=4):
     for _ in range(num):
         base_x = random.randint(100, MAP_WIDTH - 100)
@@ -220,7 +177,7 @@ def spawn_camps(n=6):
         camps.append(Camp(x, y))
         tries += 1
 
-# --- Load Game ---
+# --- Save or Load Game ---
 saved = load_game(rock_images, cow_image)
 if saved:
     player.x, player.y = saved["player"]["x"], saved["player"]["y"]
@@ -243,13 +200,17 @@ else:
 # --- Game Loop ---
 clock = pygame.time.Clock()
 running = True
+
 while running:
     dt = clock.tick(60)
     screen.fill(DESERT_COLOR)
     keys = pygame.key.get_pressed()
 
+    # --- Event Handling ---
     for event in pygame.event.get():
-        if event.type == pygame.QUIT: running = False
+        if event.type == pygame.QUIT:
+            running = False
+
         elif event.type == pygame.KEYDOWN:
             if pygame.K_1 <= event.key <= pygame.K_8:
                 selected_hotbar_index = event.key - pygame.K_1
@@ -265,49 +226,48 @@ while running:
                 survival.drink(inventory_to_dict(inventory_slots))
             elif event.key == pygame.K_o:
                 save_game(player, inventory_slots, hotbar_slots, rocks, items, campfires, lakes, camps, cows)
-                print("saved game")
+                print("Game saved.")
             elif event.key == pygame.K_ESCAPE:
                 inventory_open = False
-                for c in camps: c.is_open = False
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            crafting_system.handle_mouse_click(pygame.mouse.get_pos(), inventory_slots)
+                for c in camps:
+                    c.is_open = False
+
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = pygame.mouse.get_pos()
+            crafting_system.handle_mouse_click((mx, my), inventory_slots, hotbar_slots)
+
 
             if inventory_open:
-                # Inventory slots
+                # Inventory drag start
                 for i, slot in enumerate(inventory_slots):
                     row = i // INVENTORY_COLUMNS
                     col = i % INVENTORY_COLUMNS
-                    slot_x = 100 + col * INVENTORY_SLOT_SIZE
-                    slot_y = 100 + row * INVENTORY_SLOT_SIZE
-                    slot_rect = pygame.Rect(slot_x, slot_y, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE)
-
-                    if slot_rect.collidepoint(mx, my) and slot:
+                    sx = 100 + col * INVENTORY_SLOT_SIZE
+                    sy = 100 + row * INVENTORY_SLOT_SIZE
+                    if pygame.Rect(sx, sy, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE).collidepoint(mx, my) and slot:
                         dragged_item = slot
                         dragged_index = i
                         dragged_from = "inventory"
-                        inventory_slots[i] = None  # Remove temporarily
+                        inventory_slots[i] = None
                         break
 
-            # Hotbar slots
-            hotbar_x = SCREEN_WIDTH // 2 - (HOTBAR_SLOTS * INVENTORY_SLOT_SIZE) // 2
-            hotbar_y = SCREEN_HEIGHT - 70
-            for i, slot in enumerate(hotbar_slots):
-                slot_rect = pygame.Rect(hotbar_x + i * INVENTORY_SLOT_SIZE, hotbar_y, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE)
+                # Hotbar drag start
+                hotbar_x = SCREEN_WIDTH // 2 - (HOTBAR_SLOTS * INVENTORY_SLOT_SIZE) // 2
+                hotbar_y = SCREEN_HEIGHT - 70
+                for i, slot in enumerate(hotbar_slots):
+                    if pygame.Rect(hotbar_x + i * INVENTORY_SLOT_SIZE, hotbar_y, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE).collidepoint(mx, my) and slot:
+                        dragged_item = slot
+                        dragged_index = i
+                        dragged_from = "hotbar"
+                        hotbar_slots[i] = None
+                        break
 
-                if slot_rect.collidepoint(mx, my) and slot:
-                    dragged_item = slot
-                    dragged_index = i
-                    dragged_from = "hotbar"
-                    hotbar_slots[i] = None
-                    break
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             if dragged_item:
                 mx, my = pygame.mouse.get_pos()
                 dropped = False
 
-                # Drop into inventory
+                # Try dropping into inventory
                 for i in range(len(inventory_slots)):
                     row = i // INVENTORY_COLUMNS
                     col = i % INVENTORY_COLUMNS
@@ -317,30 +277,27 @@ while running:
 
                     if slot_rect.collidepoint(mx, my):
                         if dragged_from == "inventory":
-                            # Swap
                             inventory_slots[dragged_index], inventory_slots[i] = inventory_slots[i], dragged_item
                         elif dragged_from == "hotbar":
-                            hotbar_slots[dragged_index], inventory_slots[i] = inventory_slots[i], dragged_item
+                            inventory_slots[i], dragged_item = dragged_item, inventory_slots[i]
                         dropped = True
                         break
 
-                # Drop into hotbar
+                # Try dropping into hotbar
                 if not dropped:
                     hotbar_x = SCREEN_WIDTH // 2 - (HOTBAR_SLOTS * INVENTORY_SLOT_SIZE) // 2
                     hotbar_y = SCREEN_HEIGHT - 70
                     for i in range(HOTBAR_SLOTS):
                         slot_rect = pygame.Rect(hotbar_x + i * INVENTORY_SLOT_SIZE, hotbar_y, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE)
-
                         if slot_rect.collidepoint(mx, my):
                             if dragged_from == "inventory":
-                                inventory_slots[dragged_index] = None
-                                hotbar_slots[i] = dragged_item
+                                hotbar_slots[i], dragged_item = dragged_item, hotbar_slots[i]
                             elif dragged_from == "hotbar":
                                 hotbar_slots[dragged_index], hotbar_slots[i] = hotbar_slots[i], dragged_item
                             dropped = True
                             break
 
-                # If dropped nowhere, return to original slot
+                # If not dropped, return to original place
                 if not dropped:
                     if dragged_from == "inventory":
                         inventory_slots[dragged_index] = dragged_item
@@ -352,26 +309,29 @@ while running:
                 dragged_index = None
                 dragged_from = None
 
-
-    # --- Update Player ---
+    # --- Player Movement & Collision ---
     old_x, old_y = player.x, player.y
     player.update(keys, MAP_WIDTH, MAP_HEIGHT)
     player_rect = pygame.Rect(player.x, player.y, player.rect.width, player.rect.height)
 
-    # --- Collision ---
     for lake in lakes:
         for tile in lake:
             if player_rect.colliderect(tile.rect):
                 player.x, player.y = old_x, old_y
                 player.rect.topleft = (player.x, player.y)
+
     for rock in rocks:
         if not rock.mined and rock.blocks_movement(player_rect):
             player.x, player.y = old_x, old_y
             player.rect.topleft = (player.x, player.y)
 
     # --- Camera ---
-    camera_x = max(0, min(player.x - SCREEN_WIDTH // 2, MAP_WIDTH - SCREEN_WIDTH))
-    camera_y = max(0, min(player.y - SCREEN_HEIGHT // 2, MAP_HEIGHT - SCREEN_HEIGHT))
+    camera_x = player.rect.centerx - SCREEN_WIDTH // 2
+    camera_y = player.rect.centery - SCREEN_HEIGHT // 2
+
+    camera_x = max(0, min(camera_x, MAP_WIDTH - SCREEN_WIDTH))
+    camera_y = max(0, min(camera_y, MAP_HEIGHT - SCREEN_HEIGHT))
+
 
     if camera_shake_duration > 0:
         camera_x += random.randint(-int(camera_shake_intensity), int(camera_shake_intensity))
@@ -391,23 +351,24 @@ while running:
         for lake in lakes:
             for tile in lake:
                 if cursor_rect.colliderect(tile.rect):
-                    add_to_inventory("Water")
+                    add_to_inventory(inventory_slots, "Water", hotbar=hotbar_slots)
+
                     last_water_pickup_time = pygame.time.get_ticks()
                     break
 
-    # Pickup items
     for item in items[:]:
         rect = pygame.Rect(item["x"], item["y"], ITEM_SIZE, ITEM_SIZE)
         if player.rect.colliderect(rect) or (keys[pygame.K_f] and cursor_rect.colliderect(rect)):
-            add_to_inventory(item["type"])
+            add_to_inventory(inventory_slots, item["type"], hotbar=hotbar_slots)
             items.remove(item)
 
-    # Rock mining
     selected_slot = hotbar_slots[selected_hotbar_index]
     tool = selected_slot["item"] if selected_slot else None
+
     if tool == "Wooden Pickaxe" and keys[pygame.K_r]:
         for rock in rocks:
-            if rock.mined: continue
+            if rock.mined:
+                continue
             rect = pygame.Rect(rock.x, rock.y, rock.image.get_width(), rock.image.get_height())
             if cursor_rect.colliderect(rect):
                 if not hasattr(rock, "mining_start_time"):
@@ -416,14 +377,13 @@ while running:
                     camera_shake_intensity = 4
                 elif pygame.time.get_ticks() - rock.mining_start_time >= 2000:
                     rock.mined = True
-                    add_to_inventory("Stone")
+                    add_to_inventory(inventory_slots, "Stone", hotbar=hotbar_slots)
                     del rock.mining_start_time
     else:
         for rock in rocks:
             if hasattr(rock, "mining_start_time"):
                 del rock.mining_start_time
 
-    # Chest logic
     chest_pressed = keys[pygame.K_e] and not chest_e_pressed_last
     chest_e_pressed_last = keys[pygame.K_e]
     for camp in camps:
@@ -432,21 +392,19 @@ while running:
         if camp.is_open:
             camp.handle_input(keys, chest_pressed, inventory_slots)
 
-
-
-
-    # Combat
     if tool == "Stone Sword" and keys[pygame.K_r]:
         for cow in cows[:]:
             if cursor_rect.colliderect(pygame.Rect(cow.x, cow.y, cow.image.get_width(), cow.image.get_height())):
                 if cow.take_damage((player.x, player.y)):
                     cows.remove(cow)
-                    add_to_inventory("Meat")
-                    add_to_inventory("Leather")
+                    add_to_inventory(inventory_slots, "Meat", hotbar=hotbar_slots)
+                    add_to_inventory(inventory_slots, "Leather", hotbar=hotbar_slots)
 
-    # --- Draw World ---
+
+    # --- Drawing ---
     for lake in lakes:
-        for tile in lake: tile.draw(screen, camera_x, camera_y)
+        for tile in lake:
+            tile.draw(screen, camera_x, camera_y)
 
     for rock in rocks:
         rock.draw(screen, camera_x, camera_y)
@@ -481,17 +439,17 @@ while running:
     draw_grid(screen, grid_surface, camera_x, camera_y)
     pygame.draw.rect(screen, (255, 255, 255), (cx - camera_x, cy - camera_y, GRID_SIZE, GRID_SIZE), 3)
 
+    # Debug: Draw player hitbox
+    pygame.draw.rect(screen, (255, 0, 0), (
+        player.rect.x - camera_x,
+        player.rect.y - camera_y,
+        player.rect.width,
+        player.rect.height
+    ), 2)
+
     draw_inventory(screen, inventory_slots, inventory_open, ITEM_TYPES, dragged_item, dragged_index, dragged_from)
     draw_hotbar(screen, hotbar_slots, ITEM_TYPES, selected_hotbar_index, dragged_item, dragged_index, dragged_from)
     draw_dragged_item(screen, dragged_item, ITEM_TYPES)
-
-
-    
-    if dragged_item:
-        mx, my = pygame.mouse.get_pos()
-        from main import ITEM_TYPES
-        icon = ITEM_TYPES[dragged_item["item"]]
-        screen.blit(icon, (mx - 20, my - 20))
 
     survival.update(player.get_state())
     survival.draw(screen)
