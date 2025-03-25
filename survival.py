@@ -5,32 +5,39 @@ class Survival:
         self.hunger = 100
         self.thirst = 100
 
-        # Balanced default drain rates
-        self.hunger_decrease = 0.005   # Idle drain (very slow)
-        self.thirst_decrease = 0.0075  # Idle drain (very slow)
+        # ⚖️ New balanced drain rates (faster than before but not too punishing)
+        self.hunger_decrease = 0.0055
+        self.thirst_decrease = 0.0065  # maybe thirst drains faster
 
         self.font = pygame.font.Font(None, 28)
 
     def update(self, player_state, near_fire=False):
-        if near_fire:
-            hunger_rate = 0.0002
-            thirst_rate = 0.0003
-        else:
-            hunger_rate = 0.0005
-            thirst_rate = 0.00094
+        # 👣 Base idle rates (go down slowly even when doing nothing)
+        hunger_rate = self.hunger_decrease
+        thirst_rate = self.thirst_decrease
 
         if player_state["sprinting"]:
-            self.hunger -= hunger_rate * 2
-            self.thirst -= thirst_rate * 2
+            hunger_rate *= 3
+            thirst_rate *= 3
         elif player_state["moving"]:
-            self.hunger -= hunger_rate
-            self.thirst -= thirst_rate
+            hunger_rate *= 2
+            thirst_rate *= 2
         elif player_state["crouching"]:
-            self.hunger -= hunger_rate * 0.5
-            self.thirst -= thirst_rate * 0.5
+            hunger_rate *= 1.2
+            thirst_rate *= 1.2
+
+        # Reduce more slowly if near fire (optional)
+        if near_fire:
+            hunger_rate *= 0.5
+            thirst_rate *= 0.5
+
+        # Always decrease, even if idle
+        self.hunger -= hunger_rate
+        self.thirst -= thirst_rate
 
         self.hunger = max(0, self.hunger)
         self.thirst = max(0, self.thirst)
+
 
     def eat(self, inventory):
         if "Meat" in inventory and inventory["Meat"] > 0:
@@ -69,7 +76,7 @@ class Survival:
             pygame.draw.rect(screen, (40, 40, 40), bg_rect, border_radius=4)
             pygame.draw.rect(screen, color, fill_rect, border_radius=4)
 
-            label_surface = font.render(f"{label}: {int(value)}", True, (240, 240, 240))
+            label_surface = font.render(f"{label}: {int(round(value))}", True, (240, 240, 240))
             screen.blit(label_surface, (bar_x + bar_width + 16, bar_y + y_offset + 2))
 
         draw_bar("Hunger", self.hunger, 0, (200, 50, 50))

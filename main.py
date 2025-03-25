@@ -180,16 +180,26 @@ def spawn_camps(n=6):
 # --- Save or Load Game ---
 saved = load_game(rock_images, cow_image)
 if saved:
+    # Player position
     player.x, player.y = saved["player"]["x"], saved["player"]["y"]
     player.rect.topleft = (player.x, player.y)
+
+    # Inventory
     inventory_slots = saved["inventory_slots"]
     hotbar_slots = saved["hotbar_slots"]
+
+    # World
     rocks = saved["rocks"]
     items = saved["items"]
     campfires = saved["campfires"]
     lakes = saved["lakes"]
     camps = saved["camps"]
     cows = saved["cows"]
+
+    # Time and Survival
+    day_night_cycle.time_of_day = saved["time_of_day"]
+    survival.hunger = saved["hunger"]
+    survival.thirst = saved["thirst"]
 else:
     spawn_lakes()
     spawn_rocks()
@@ -225,8 +235,22 @@ while running:
             elif event.key == pygame.K_j:
                 survival.drink(inventory_to_dict(inventory_slots))
             elif event.key == pygame.K_o:
-                save_game(player, inventory_slots, hotbar_slots, rocks, items, campfires, lakes, camps, cows)
+                save_game(
+                    player,
+                    inventory_slots,
+                    hotbar_slots,
+                    rocks,
+                    items,
+                    campfires,
+                    lakes,
+                    camps,
+                    cows,
+                    day_night_cycle.time_of_day,      # 🌞 Time
+                    survival.hunger,                  # 🍖 Hunger
+                    survival.thirst                   # 💧 Thirst
+                )
                 print("Game saved.")
+            # 🔥 Place Campfire from hotbar
             elif event.key == pygame.K_ESCAPE:
                 inventory_open = False
                 for c in camps:
@@ -312,6 +336,8 @@ while running:
     # --- Player Movement & Collision ---
     old_x, old_y = player.x, player.y
     player.update(keys, MAP_WIDTH, MAP_HEIGHT)
+    survival.update(player.get_state())
+
     player_rect = pygame.Rect(player.x, player.y, player.rect.width, player.rect.height)
 
     for lake in lakes:
@@ -345,6 +371,50 @@ while running:
     cx = (player.x + player.rect.width // 2 + dx) // GRID_SIZE * GRID_SIZE
     cy = (player.y + player.rect.height // 2 + dy) // GRID_SIZE * GRID_SIZE
     cursor_rect = pygame.Rect(cx, cy, GRID_SIZE, GRID_SIZE)
+
+    # 🔥 Campfire Placement
+    if keys[pygame.K_r]:
+        selected_slot = hotbar_slots[selected_hotbar_index]
+        if selected_slot and selected_slot["item"] == "Campfire":
+            blocked = False
+
+            # Check collisions with lakes
+            for lake in lakes:
+                for tile in lake:
+                    if cursor_rect.colliderect(tile.rect):
+                        blocked = True
+                        break  # Minor optimization
+                if blocked: break
+
+            # Rocks
+            if not blocked:
+                for rock in rocks:
+                    if not rock.mined and rock.rect.colliderect(cursor_rect):
+                        blocked = True
+                        break
+
+            # Camps
+            if not blocked:
+                for camp in camps:
+                    if camp.rect.colliderect(cursor_rect):
+                        blocked = True
+                        break
+
+            # Existing Campfires
+            if not blocked:
+                for campfire in campfires:
+                    if pygame.Rect(campfire.x, campfire.y, 64, 64).colliderect(cursor_rect):
+                        blocked = True
+                        break
+
+            # ✅ If placement is clear
+            if not blocked:
+                campfires.append(Campfire(cursor_rect.x, cursor_rect.y))
+                selected_slot["count"] -= 1
+                if selected_slot["count"] <= 0:
+                    hotbar_slots[selected_hotbar_index] = None
+                print("🔥 Campfire placed at", cursor_rect.topleft)
+
 
     # --- Interactions ---
     if keys[pygame.K_f] and pygame.time.get_ticks() - last_water_pickup_time > WATER_PICKUP_COOLDOWN:
@@ -434,6 +504,7 @@ while running:
     for fire in campfires:
         if fire.is_burning():
             fire.draw(screen, camera_x, camera_y)
+
 
     player.draw(screen, camera_x - 78, camera_y)
     draw_grid(screen, grid_surface, camera_x, camera_y)

@@ -38,7 +38,7 @@ def consolidate_duplicates(inventory_slots, hotbar_slots):
 
     for i in range(len(hotbar_slots)):
         hotbar_slots[i] = all_slots[i + len(inventory_slots)]
-
+    
 
 def add_to_inventory(inventory_slots, item_name, amount=1, hotbar=None):
     """Adds item to inventory or hotbar, stacking if possible, and consolidates after."""
