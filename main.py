@@ -501,22 +501,17 @@ while running:
         camp.draw(screen, camera_x, camera_y)
         camp.draw_chest_ui(screen, ITEM_TYPES)
 
+    player.draw(screen, camera_x - 78, camera_y, False)
+    draw_grid(screen, grid_surface, camera_x, camera_y)
+    pygame.draw.rect(screen, (255, 255, 255), (cx - camera_x, cy - camera_y, GRID_SIZE, GRID_SIZE), 3)
+
+    day_night_cycle.draw(screen)
+
     for fire in campfires:
         if fire.is_burning():
             fire.draw(screen, camera_x, camera_y)
 
 
-    player.draw(screen, camera_x - 78, camera_y)
-    draw_grid(screen, grid_surface, camera_x, camera_y)
-    pygame.draw.rect(screen, (255, 255, 255), (cx - camera_x, cy - camera_y, GRID_SIZE, GRID_SIZE), 3)
-
-    # Debug: Draw player hitbox
-    pygame.draw.rect(screen, (255, 0, 0), (
-        player.rect.x - camera_x,
-        player.rect.y - camera_y,
-        player.rect.width,
-        player.rect.height
-    ), 2)
 
     draw_inventory(screen, inventory_slots, inventory_open, ITEM_TYPES, dragged_item, dragged_index, dragged_from)
     draw_hotbar(screen, hotbar_slots, ITEM_TYPES, selected_hotbar_index, dragged_item, dragged_index, dragged_from)
@@ -526,7 +521,6 @@ while running:
     survival.draw(screen)
     minimap.draw(screen, player.x, player.y, camps=camps, rocks=rocks, water_tiles=lakes, cows=cows)
     crafting_system.draw(screen, inventory_slots)
-    day_night_cycle.draw(screen)
     particle_system.update()
     particle_system.draw(screen, camera_x, camera_y)
 

@@ -1,7 +1,7 @@
 import pygame
 
 class DayNightCycle:
-    def __init__(self, day_length=30000, night_length=15000):
+    def __init__(self, day_length=300, night_length=150):
         """Initialize the day-night cycle with different day and night speeds."""
         self.start_time = pygame.time.get_ticks()  # Start time in milliseconds
         self.day_length = day_length * 1000  # Convert day duration to milliseconds

@@ -166,10 +166,6 @@ class Player:
         screen.blit(shadow, (shadow_x, shadow_y))
         screen.blit(sprite, (self.rect.x - camera_x + offset_x, self.rect.y - camera_y + offset_y))
 
-        # Debug: Draw collision box
-        if debug:
-            pygame.draw.rect(screen, (255, 0, 0), (self.rect.x - camera_x, self.rect.y - camera_y, self.rect.width, self.rect.height), 2)
-
     def get_current_frame(self):
         """Returns the current animation frame safely."""
         return self.current_sprites[int(self.frame_index)] if self.current_sprites else None
