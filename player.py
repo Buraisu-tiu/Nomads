@@ -42,6 +42,11 @@ class Player:
         # Store the offset to apply later during movement
         self.hitbox_offset = (hitbox_offset_x, hitbox_offset_y)
 
+        # Adjustable offsets for sprite alignment
+        self.sprite_offset_x = -150  # Horizontal offset for sprite alignment
+        self.sprite_offset_y = -22  # Vertical offset for sprite alignment
+        self.shadow_offset_y = -25  # Offset for shadow alignment
+
     def load_sprite_sheet(self, path, num_frames):
         """Load sprite sheet, extract vertically stacked frames, and scale them up."""
         sheet = pygame.image.load(path).convert_alpha()
@@ -56,7 +61,7 @@ class Player:
 
         return frames
 
-    def update(self, keys, map_width, map_height):
+    def update(self, keys, map_width, map_height, rocks, lakes):
         """Update player movement, animations, and keep within boundaries."""
         previous_sprites = self.current_sprites  # Store previous animation state
 
@@ -80,14 +85,19 @@ class Player:
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.velocity_x = -self.speed
             self.direction = "left"
+            if self.sprite_offset_x == -150:
+                self.sprite_offset_x += 12
             self.last_direction = "left"
             self.current_sprites = self.run_sprites
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.velocity_x = self.speed
             self.direction = "right"
+            if self.sprite_offset_x == -150:
+                self.sprite_offset_x -= 3
             self.last_direction = "right"
             self.current_sprites = self.run_sprites
-
+        else:
+            self.sprite_offset_x = -140
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             self.velocity_y = -self.speed
             self.last_direction = "up"
@@ -106,6 +116,7 @@ class Player:
             self.frame_index = 0  
 
         # Apply movement
+        old_x, old_y = self.x, self.y
         self.x += self.velocity_x
         self.y += self.velocity_y
 
@@ -116,6 +127,20 @@ class Player:
         # Update collision rect position
         self.rect.topleft = (self.x + self.hitbox_offset[0], self.y + self.hitbox_offset[1])
 
+        # Check collisions with rocks
+        for rock in rocks:
+            if not rock.mined and rock.blocks_movement(self.rect):
+                self.x, self.y = old_x, old_y
+                self.rect.topleft = (self.x + self.hitbox_offset[0], self.y + self.hitbox_offset[1])
+                break
+
+        # Check collisions with lakes
+        for lake in lakes:
+            for tile in lake:
+                if self.rect.colliderect(tile.rect):
+                    self.x, self.y = old_x, old_y
+                    self.rect.topleft = (self.x + self.hitbox_offset[0], self.y + self.hitbox_offset[1])
+                    break
 
         # Update animation frame
         self.update_animation()
@@ -141,30 +166,26 @@ class Player:
             sprite = pygame.transform.scale(sprite, (sprite.get_width(), int(sprite.get_height() * 0.75)))  # Shorter sprite
             crouch_offset_y = 10  # Move player down slightly
 
-        # **Fixed centering issue**
-        # Base offset to push sprite lower
-        sprite_offset_y = -22
+        # Calculate offsets
+        offset_x = self.sprite_offset_x
+        offset_y = self.sprite_offset_y + crouch_offset_y
 
-        # Directional horizontal offset
-        if self.direction == "left":
-            sprite_offset_x = 13  # shift more to the left
-        else:
-            sprite_offset_x = 0  # no offset when facing right
-
-        # Apply centered positioning + offsets
-        offset_x = -sprite.get_width() // 1.3 + self.rect.width // 2 + sprite_offset_x
-        offset_y = -sprite.get_height() // 4 + self.rect.height // 2 + crouch_offset_y + sprite_offset_y
-        # Adjust up/down, move down when crouching
         # Draw shadow
         shadow_width = self.rect.width
         shadow_height = 12
         shadow_x = self.rect.x - camera_x + offset_x + sprite.get_width() // 1.9 - shadow_width // 1.9
-        shadow_y = self.rect.y - camera_y + offset_y + sprite.get_height() - 25
+        shadow_y = self.rect.y - camera_y + offset_y + sprite.get_height() + self.shadow_offset_y
 
         shadow = pygame.Surface((shadow_width, shadow_height), pygame.SRCALPHA)
         pygame.draw.ellipse(shadow, (0, 0, 0, 80), shadow.get_rect())
         screen.blit(shadow, (shadow_x, shadow_y))
+
+        # Draw sprite
         screen.blit(sprite, (self.rect.x - camera_x + offset_x, self.rect.y - camera_y + offset_y))
+
+        # Debug: Draw collision rect
+        if debug:
+            pygame.draw.rect(screen, (255, 0, 0), (self.rect.x - camera_x, self.rect.y - camera_y, self.rect.width, self.rect.height), 2)
 
     def get_current_frame(self):
         """Returns the current animation frame safely."""

@@ -7,8 +7,8 @@ class MiniMap:
         self.screen_width = screen_width
         self.screen_height = screen_height
 
-        self.small_size = (160, 160)
-        self.large_size = (500, 500)
+        self.small_size = (200, 200)  # Increased size for small minimap
+        self.large_size = (600, 600)  # Increased size for large minimap
         self.surface = pygame.Surface(self.small_size, pygame.SRCALPHA)
         self.width, self.height = self.small_size  # Set initial width and height from small_size
         self.opacity = 200
@@ -63,4 +63,4 @@ class MiniMap:
         pygame.draw.circle(self.surface, (255, 0, 0), (mini_x, mini_y), 5)
 
         # Blit to screen
-        screen.blit(self.surface, (self.screen_width - self.width - 10, 10))
+        screen.blit(self.surface, (self.screen_width - self.width - 20, 20))  # Adjusted position

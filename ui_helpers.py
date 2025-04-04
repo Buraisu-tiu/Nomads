@@ -14,8 +14,8 @@ INVENTORY_SLOT_SIZE = 75
 HOTBAR_SLOTS = 8
 SLOT_SIZE = 60
 ICON_SIZE = 40
-SCREEN_WIDTH = 1200
-SCREEN_HEIGHT = 800
+SCREEN_WIDTH = 1600  # Updated resolution
+SCREEN_HEIGHT = 900  # Updated resolution
 
 
 def draw_inventory(screen, inventory_slots, open_, ITEM_TYPES, dragged_item=None, dragged_index=None, dragged_from=None):
@@ -77,8 +77,8 @@ def draw_inventory(screen, inventory_slots, open_, ITEM_TYPES, dragged_item=None
 
 
 def draw_hotbar(screen, hotbar_slots, ITEM_TYPES, selected_index=0, dragged_item=None, dragged_index=None, dragged_from=None):
-    HOTBAR_X = SCREEN_WIDTH // 2 - (HOTBAR_SLOTS * SLOT_SIZE) // 2
-    HOTBAR_Y = SCREEN_HEIGHT - 70
+    HOTBAR_X = SCREEN_WIDTH // 2 - (HOTBAR_SLOTS * SLOT_SIZE) // 2  # Centered horizontally
+    HOTBAR_Y = SCREEN_HEIGHT - 100  # Adjusted to be closer to the bottom
     font = pygame.font.Font(None, 28)
 
     # Hotbar panel

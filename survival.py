@@ -58,13 +58,13 @@ class Survival:
         return False
 
     def draw(self, screen):
-        bar_x = 20
-        bar_y = 20
-        bar_width = 200
-        bar_height = 22
-        spacing = 12
+        bar_x = 30  # Adjusted position
+        bar_y = 30  # Adjusted position
+        bar_width = 300  # Increased width
+        bar_height = 30  # Increased height
+        spacing = 20  # Increased spacing
 
-        font = pygame.font.Font("freesansbold.ttf", 18)
+        font = pygame.font.Font("freesansbold.ttf", 22)  # Slightly larger font
 
         def draw_bar(label, value, y_offset, color):
             outer_rect = pygame.Rect(bar_x - 4, bar_y + y_offset - 4, bar_width + 8, bar_height + 8)

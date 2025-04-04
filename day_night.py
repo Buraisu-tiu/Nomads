@@ -44,11 +44,11 @@ class DayNightCycle:
 
     def draw_clock(self, screen, time_of_day):
         """Draws a simple clock UI showing sun & moon movement."""
-        clock_x, clock_y = 550, 20  # Centered at the top
-        clock_width, clock_height = 300, 30  # Clock bar size
+        clock_x, clock_y = (screen.get_width() // 2) - 200, 20  # Centered horizontally
+        clock_width, clock_height = 400, 40  # Increased size
 
         # **Draw Background**
-        pygame.draw.rect(screen, (50, 50, 50), (clock_x, clock_y, clock_width, clock_height))  
+        pygame.draw.rect(screen, (50, 50, 50), (clock_x, clock_y, clock_width, clock_height))
         pygame.draw.rect(screen, (0, 0, 0), (clock_x - 2, clock_y - 2, clock_width + 4, clock_height + 4), 2)  # Black Border
 
         # **Determine Sun & Moon Position**
@@ -56,7 +56,7 @@ class DayNightCycle:
         moon_x = int(clock_x + ((time_of_day + 0.5) % 1 * clock_width))  # Moon moves opposite to sun
 
         # **Draw Sun (Orange Square)**
-        pygame.draw.rect(screen, (255, 165, 0), (sun_x, clock_y + 5, 20, 20))  # Sun position
+        pygame.draw.rect(screen, (255, 165, 0), (sun_x, clock_y + 10, 30, 30))  # Sun position
 
         # **Draw Moon (Gray Square)**
-        pygame.draw.rect(screen, (180, 180, 180), (moon_x, clock_y + 5, 20, 20))  # Moon position
+        pygame.draw.rect(screen, (180, 180, 180), (moon_x, clock_y + 10, 30, 30))  # Moon position
